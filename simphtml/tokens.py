@@ -1,7 +1,9 @@
 import string
 from cStringIO import StringIO
 
+
 class Token(object):
+	"""Base class for all token types."""
 	def __eq__(self, other):
 		return (isinstance(other, self.__class__) and
 		        self.__dict__ == other.__dict__)
@@ -22,6 +24,7 @@ class EscapeLtToken(Token): pass
 class EscapeAmpToken(Token): pass
 
 class TextToken(Token):
+	"""Token type representing a block of normal text."""
 	def __init__(self, text):
 		self.text = text
 
@@ -32,6 +35,7 @@ class TextToken(Token):
 		return "%s('%s')" % (self.__class__.__name__, self.text)
 
 class IdToken(Token):
+	"""Token type representing an identifer for a tag."""
 	def __init__(self, id):
 		self.id = id
 
@@ -42,16 +46,18 @@ class IdToken(Token):
 		return "%s('%s')" % (self.__class__.__name__, self.id)
 
 class TokenizeError(Exception):
+	"""Error class for passing line/col where tokenize errors occur."""
 	def __init__(self):
 		Exception.__init__(self)
 		self.line = None
 		self.col = None
 
 	def isError(self):
+		"""Returns true if this instance represents an error, false otherwise."""
 		return self.line is not None and self.col is not None
 
-# Defines constants for each token state
 class TokenState(object):
+	"""Pseudo enum class to represent the state diagram for extracting tokens."""
 	_states = (
 	'START',
 	'END',
@@ -77,13 +83,15 @@ class TokenState(object):
 # Set up the various token state constants.
 TokenState.initStates()
 
-# Produces a stream of tokens of type Token.
 class TokenStream(object):
+	"""Provides an iterable stream of tokens for the given lines of text."""
 	def __init__(self, lines):
 		self._lines = lines
 		self._token = None
 		self._prevChars = StringIO()
 		self._currState = TokenState.START
+
+		# Defines a mapping of current state to state transition handler method.
 		self._parseNext = {
 			TokenState.START: self._start,
 			TokenState.END: self._end,
@@ -106,11 +114,13 @@ class TokenStream(object):
 		}
 
 	def _makeTextToken(self):
+		"""Grab the current character buffer and produce a TextToken token."""
 		self._token = TextToken(self._prevChars.getvalue())
 		self._prevChars.close()
 		self._prevChars = StringIO()
 
 	def _makeIdToken(self):
+		"""Grab the current character buffer and produce a IdToken token."""
 		self._token = IdToken(self._prevChars.getvalue())
 		self._prevChars.close()
 		self._prevChars = StringIO()
@@ -282,9 +292,11 @@ class TokenStream(object):
 		return self._nextToken()
 
 	def _nextState(self, char, lineNum, charPos, error):
+		"""Transitions from the current state to the next state."""
 		self._currState = self._parseNext[self._currState](char, lineNum, charPos, error)
 
 	def _nextToken(self):
+		"""Generator method that yields a stream of tokens."""
 		error = TokenizeError()
 		for lineNum, line in enumerate(self._lines):
 			for charPos, char in enumerate(line):
@@ -294,6 +306,7 @@ class TokenStream(object):
 				if self._currState == TokenState.START:
 					self._nextState(char, lineNum, charPos, error)
 
+				# Check for errors and yield the current token if one was produced.
 				if error.isError():
 					raise error
 				elif self._token is not None:
@@ -309,4 +322,5 @@ class TokenStream(object):
 			self._token = None
 
 	def tokens(self):
+		"""Returns a tuple of tokens for this TokenStream."""
 		return tuple(self)
