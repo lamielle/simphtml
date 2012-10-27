@@ -1,3 +1,4 @@
+import string
 from cStringIO import StringIO
 
 class Token(object):
@@ -52,6 +53,8 @@ class TokenizeError(Exception):
 # Defines constants for each token state
 class TokenState(object):
 	_states = (
+	'START',
+	'END',
 	'TEXT',
 	'GT',
 	'LT',
@@ -78,56 +81,232 @@ TokenState.initStates()
 class TokenStream(object):
 	def __init__(self, lines):
 		self._lines = lines
-		self._prevState = None
-		self._currState = TokenState.TEXT
+		self._token = None
+		self._prevChars = StringIO()
+		self._currState = TokenState.START
 		self._parseNext = {
-			TokenState.TEXT: self.text,
+			TokenState.START: self._start,
+			TokenState.END: self._end,
 
-			TokenState.GT: self.gt,
-			TokenState.LT: self.lt,
-			TokenState.SLASH: self.slash,
+			TokenState.TEXT: self._text,
 
-			TokenState.ID_START: self.idStart,
-			TokenState.ID_NONSTART: self.idNonStart,
+			TokenState.GT: self._gt,
+			TokenState.LT: self._lt,
+			TokenState.SLASH: self._slash,
 
-			TokenState.AMP: self.amp,
-			TokenState.AMP_L: self.ampL,
-			TokenState.AMP_T: self.ampT,
-			TokenState.AMP_A: self.ampA,
-			TokenState.AMP_M: self.ampM,
-			TokenState.AMP_P: self.ampP,
+			TokenState.ID_START: self._idStart,
+			TokenState.ID_NONSTART: self._idNonStart,
+
+			TokenState.AMP: self._amp,
+			TokenState.AMP_L: self._ampL,
+			TokenState.AMP_T: self._ampT,
+			TokenState.AMP_A: self._ampA,
+			TokenState.AMP_M: self._ampM,
+			TokenState.AMP_P: self._ampP,
 		}
 
-	def text(self, char, lineNum, charPos, error):
-		self._token = TextToken(char)
-		return TokenState.TEXT
+	def _makeTextToken(self):
+		self._token = TextToken(self._prevChars.getvalue())
+		self._prevChars.close()
+		self._prevChars = StringIO()
 
-	def gt(self, char, lineNum, charPos, error): pass
-	def lt(self, char, lineNum, charPos, error): pass
-	def slash(self, char, lineNum, charPos, error): pass
-	def idStart(self, char, lineNum, charPos, error): pass
-	def idNonStart(self, char, lineNum, charPos, error): pass
-	def amp(self, char, lineNum, charPos, error): pass
-	def ampL(self, char, lineNum, charPos, error): pass
-	def ampT(self, char, lineNum, charPos, error): pass
-	def ampA(self, char, lineNum, charPos, error): pass
-	def ampM(self, char, lineNum, charPos, error): pass
-	def ampP(self, char, lineNum, charPos, error): pass
+	def _makeIdToken(self):
+		self._token = IdToken(self._prevChars.getvalue())
+		self._prevChars.close()
+		self._prevChars = StringIO()
+
+	def _start(self, char, lineNum, charPos, error):
+		if char == '':
+			return TokenState.END
+		elif char == '<':
+			return TokenState.LT
+		elif char == '>':
+			return TokenState.GT
+		elif char == '&':
+			return TokenState.AMP
+		elif char == '/':
+			return TokenState.SLASH
+		else:
+			self._prevChars.write(char)
+			return TokenState.TEXT
+
+	def _end(self, char, lineNum, charPos, error):
+		return None
+
+	def _text(self, char, lineNum, charPos, error):
+		if char == '':
+			self._makeTextToken()
+			return TokenState.END
+		elif char == '<':
+			self._makeTextToken()
+			return TokenState.LT
+		elif char == '>':
+			self._makeTextToken()
+			return TokenState.GT
+		elif char == '&':
+			self._makeTextToken()
+			return TokenState.AMP
+		else:
+			self._prevChars.write(char)
+			return TokenState.TEXT
+
+	def _gt(self, char, lineNum, charPos, error):
+		self._token = GtToken()
+		if char == '':
+			return TokenState.END
+		elif char == '<':
+			return TokenState.LT
+		elif char == '>':
+			return TokenState.GT
+		elif char == '&':
+			return TokenState.AMP
+		else:
+			return TokenState.START
+
+	def _lt(self, char, lineNum, charPos, error):
+		self._token = LtToken()
+		if char == '':
+			return TokenState.END
+		elif char == '<':
+			return TokenState.LT
+		elif char == '>':
+			return TokenState.GT
+		elif char == '&':
+			return TokenState.AMP
+		elif char in string.letters:
+			self._prevChars.write(char)
+			return TokenState.ID_START
+		elif char in string.digits or char == '-':
+			error.line = lineNum
+			error.col = charPos
+			return None
+		else:
+			return TokenState.START
+
+	def _slash(self, char, lineNum, charPos, error):
+		self._token = SlashToken()
+		if char == '':
+			return TokenState.END
+		elif char == '>':
+			return TokenState.GT
+		elif char in string.letters:
+			self._prevChars.write(char)
+			return TokenState.ID_START
+		else:
+			return TokenState.START
+
+	def _idStart(self, char, lineNum, charPos, error):
+		if char == '':
+			return TokenState.END
+		elif char in string.letters or char in string.digits or char == '-':
+			self._prevChars.write(char)
+			return TokenState.ID_NONSTART
+		else:
+			self._makeIdToken()
+			return TokenState.START
+
+	def _idNonStart(self, char, lineNum, charPos, error):
+		if char == '':
+			self._makeIdToken()
+			return TokenState.END
+		elif char in string.letters or char in string.digits or char == '-':
+			self._prevChars.write(char)
+			return TokenState.ID_NONSTART
+		else:
+			self._makeIdToken()
+			return TokenState.START
+
+	def _amp(self, char, lineNum, charPos, error):
+		if char == '':
+			return TokenState.END
+		elif char == 'l':
+			return TokenState.AMP_L
+		elif char == 'a':
+			return TokenState.AMP_A
+		else:
+			error.line = lineNum
+			error.col = charPos
+			return None
+
+	def _ampL(self, char, lineNum, charPos, error):
+		if char == '':
+			error.line = lineNum
+			error.col = charPos
+			return None
+		elif char == 't':
+			return TokenState.AMP_T
+		else:
+			error.line = lineNum
+			error.col = charPos
+			return None
+
+	def _ampT(self, char, lineNum, charPos, error):
+		self._token = EscapeLtToken()
+		if char == '':
+			return TokenState.END
+		else:
+			return TokenState.START
+
+	def _ampA(self, char, lineNum, charPos, error):
+		if char == '':
+			error.line = lineNum
+			error.col = charPos
+			return None
+		elif char == 'm':
+			return TokenState.AMP_M
+		else:
+			error.line = lineNum
+			error.col = charPos
+			return None
+
+	def _ampM(self, char, lineNum, charPos, error):
+		if char == '':
+			error.line = lineNum
+			error.col = charPos
+			return None
+		elif char == 'p':
+			return TokenState.AMP_P
+		else:
+			error.line = lineNum
+			error.col = charPos
+			return None
+
+	def _ampP(self, char, lineNum, charPos, error):
+		self._token = EscapeAmpToken()
+		if char == '':
+			return TokenState.END
+		else:
+			return TokenState.START
 
 	def __iter__(self):
 		return self._nextToken()
+
+	def _nextState(self, char, lineNum, charPos, error):
+		self._currState = self._parseNext[self._currState](char, lineNum, charPos, error)
 
 	def _nextToken(self):
 		error = TokenizeError()
 		for lineNum, line in enumerate(self._lines):
 			for charPos, char in enumerate(line):
-				self._prevState = self._currState
-				self._currState = self._parseNext[self._prevState](char, lineNum, charPos, error)
+				self._nextState(char, lineNum, charPos, error)
+
+				# Don't eat the current char if we just moved back to the start state.
+				if self._currState == TokenState.START:
+					self._nextState(char, lineNum, charPos, error)
+
 				if error.isError():
 					raise error
 				elif self._token is not None:
 					yield self._token
 					self._token = None
+
+		# Flush the last state.
+		self._nextState('', -1, -1, error)
+		if error.isError():
+			raise error
+		elif self._token is not None:
+			yield self._token
+			self._token = None
 
 	def tokens(self):
 		return tuple(self)
