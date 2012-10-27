@@ -67,6 +67,7 @@ class TokenState(object):
 	'SLASH',
 	'ID_START',
 	'ID_NONSTART',
+	'TAG_WHITE',
 	'AMP',
 	'AMP_L',
 	'AMP_T',
@@ -104,6 +105,8 @@ class TokenStream(object):
 
 			TokenState.ID_START: self._idStart,
 			TokenState.ID_NONSTART: self._idNonStart,
+
+			TokenState.TAG_WHITE: self._tagWhite,
 
 			TokenState.AMP: self._amp,
 			TokenState.AMP_L: self._ampL,
@@ -186,6 +189,8 @@ class TokenStream(object):
 		elif char in string.letters:
 			self._prevChars.write(char)
 			return TokenState.ID_START
+		elif char in string.whitespace:
+			return TokenState.TAG_WHITE
 		elif char in string.digits or char == '-':
 			error.line = lineNum
 			error.col = charPos
@@ -202,6 +207,8 @@ class TokenStream(object):
 		elif char in string.letters:
 			self._prevChars.write(char)
 			return TokenState.ID_START
+		elif char in string.whitespace:
+			return TokenState.TAG_WHITE
 		else:
 			return TokenState.START
 
@@ -211,6 +218,9 @@ class TokenStream(object):
 		elif char in string.letters or char in string.digits or char == '-':
 			self._prevChars.write(char)
 			return TokenState.ID_NONSTART
+		elif char in string.whitespace:
+			self._makeIdToken()
+			return TokenState.TAG_WHITE
 		else:
 			self._makeIdToken()
 			return TokenState.START
@@ -222,9 +232,31 @@ class TokenStream(object):
 		elif char in string.letters or char in string.digits or char == '-':
 			self._prevChars.write(char)
 			return TokenState.ID_NONSTART
+		elif char in string.whitespace:
+			self._makeIdToken()
+			return TokenState.TAG_WHITE
 		else:
 			self._makeIdToken()
 			return TokenState.START
+
+	def _tagWhite(self, char, lineNum, charPos, error):
+		if char == '':
+			return TokenState.END
+		elif char == '<':
+			return TokenState.LT
+		elif char == '>':
+			return TokenState.GT
+		elif char == '/':
+			return TokenState.SLASH
+		elif char in string.letters:
+			self._prevChars.write(char)
+			return TokenState.ID_START
+		elif char in string.whitespace:
+			return TokenState.TAG_WHITE
+		else:
+			error.line = lineNum
+			error.col = charPos
+			return None
 
 	def _amp(self, char, lineNum, charPos, error):
 		if char == '':

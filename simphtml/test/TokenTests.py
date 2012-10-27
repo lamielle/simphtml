@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 import simphtml
+from simphtml import tokenize
 from simphtml.tokens import *
 
 class TestEquality(TestCase):
@@ -28,49 +29,83 @@ class TestEquality(TestCase):
 		self.assertEqual(EscapeAmpToken(), EscapeAmpToken())
 		self.assertNotEqual(EscapeAmpToken(), GtToken())
 
-class TestTokenStream(TestCase):
+class TestSingleLineTokenStream(TestCase):
 	def test_empty(self):
-		self.assertEqual(simphtml.tokenize(''), ())
+		self.assertEqual(tokenize(''), ())
 
 	def test_degenerate(self):
-		self.assertEqual(simphtml.tokenize('<'), (LtToken(),))
-		self.assertEqual(simphtml.tokenize('<>'), (LtToken(), GtToken()))
-		self.assertEqual(simphtml.tokenize('>'), (GtToken(),))
-		self.assertEqual(simphtml.tokenize('/>'), (SlashToken(), GtToken()))
-		self.assertEqual(simphtml.tokenize('</>'), (LtToken(), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<'), (LtToken(),))
+		self.assertEqual(tokenize('<>'), (LtToken(), GtToken()))
+		self.assertEqual(tokenize('>'), (GtToken(),))
+		self.assertEqual(tokenize('/>'), (SlashToken(), GtToken()))
+		self.assertEqual(tokenize('</>'), (LtToken(), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<<'), (LtToken(), LtToken()))
 
 	def test_tokenize_error(self):
-		self.assertRaises(TokenizeError, simphtml.tokenize, '<-')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '<->')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '<-/>')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '<1/>')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '<&/>')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&foo')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&&')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&<')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&-')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&1')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&a')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&am')
-		self.assertRaises(TokenizeError, simphtml.tokenize, '&l')
+		self.assertRaises(TokenizeError, tokenize, '<-')
+		self.assertRaises(TokenizeError, tokenize, '<->')
+		self.assertRaises(TokenizeError, tokenize, '<-/>')
+		self.assertRaises(TokenizeError, tokenize, '<1/>')
+		self.assertRaises(TokenizeError, tokenize, '<&/>')
+		self.assertRaises(TokenizeError, tokenize, '&foo')
+		self.assertRaises(TokenizeError, tokenize, '&&')
+		self.assertRaises(TokenizeError, tokenize, '&<')
+		self.assertRaises(TokenizeError, tokenize, '&-')
+		self.assertRaises(TokenizeError, tokenize, '&1')
+		self.assertRaises(TokenizeError, tokenize, '&a')
+		self.assertRaises(TokenizeError, tokenize, '&am')
+		self.assertRaises(TokenizeError, tokenize, '&l')
 
 	def test_text(self):
-		self.assertEqual(simphtml.tokenize('f'), (TextToken('f'),))
-		self.assertEqual(simphtml.tokenize('foo'), (TextToken('foo'),))
-		self.assertEqual(simphtml.tokenize('This is some text'), (TextToken('This is some text'),))
+		self.assertEqual(tokenize('f'), (TextToken('f'),))
+		self.assertEqual(tokenize('foo'), (TextToken('foo'),))
+		self.assertEqual(tokenize('This is some text'), (TextToken('This is some text'),))
 
 	def test_escape(self):
-		self.assertEqual(simphtml.tokenize('&lt'), (EscapeLtToken(),))
-		self.assertEqual(simphtml.tokenize('&amp'), (EscapeAmpToken(),))
-		self.assertEqual(simphtml.tokenize('before&ampafter'), (TextToken('before'), EscapeAmpToken(), TextToken('after')))
+		self.assertEqual(tokenize('&lt'), (EscapeLtToken(),))
+		self.assertEqual(tokenize('&amp'), (EscapeAmpToken(),))
+		self.assertEqual(tokenize('before&ampafter'), (TextToken('before'), EscapeAmpToken(), TextToken('after')))
 
 	def test_standalone(self):
-		self.assertEqual(simphtml.tokenize('<f/>'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
-		self.assertEqual(simphtml.tokenize('<foo/>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
-		self.assertEqual(simphtml.tokenize('<foo-bar/>'), (LtToken(), IdToken('foo-bar'), SlashToken(), GtToken()))
-		self.assertEqual(simphtml.tokenize('<a-/>'), (LtToken(), IdToken('a-'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<f/>'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<foo/>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<foo-bar/>'), (LtToken(), IdToken('foo-bar'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<a-/>'), (LtToken(), IdToken('a-'), SlashToken(), GtToken()))
 
 	def test_matched(self):
-		self.assertEqual(simphtml.tokenize('<f></f>'), (LtToken(), IdToken('f'), GtToken(), LtToken(), SlashToken(), IdToken('f'), GtToken()))
-		self.assertEqual(simphtml.tokenize('<foo></foo>'), (LtToken(), IdToken('foo'), GtToken(), LtToken(), SlashToken(), IdToken('foo'), GtToken()))
-		self.assertEqual(simphtml.tokenize('<foo-bar></foo-bar>'), (LtToken(), IdToken('foo-bar'), GtToken(), LtToken(), SlashToken(), IdToken('foo-bar'), GtToken()))
+		self.assertEqual(tokenize('<f></f>'), (LtToken(), IdToken('f'), GtToken(), LtToken(), SlashToken(), IdToken('f'), GtToken()))
+		self.assertEqual(tokenize('<foo></foo>'), (LtToken(), IdToken('foo'), GtToken(), LtToken(), SlashToken(), IdToken('foo'), GtToken()))
+		self.assertEqual(tokenize('<foo-bar></foo-bar>'), (LtToken(), IdToken('foo-bar'), GtToken(), LtToken(), SlashToken(), IdToken('foo-bar'), GtToken()))
+
+class TestWhiteSpaceTokenStream(TestCase):
+	def test_text_with_newline(self):
+		self.assertEqual(tokenize('this is some text\nwith a newline'), (TextToken('this is some text\nwith a newline'),))
+
+	def test_escape_with_whitespace(self):
+		self.assertRaises(TokenizeError, tokenize, '&a\nmp')
+		self.assertRaises(TokenizeError, tokenize, '& amp')
+		self.assertRaises(TokenizeError, tokenize, '&a mp')
+		self.assertRaises(TokenizeError, tokenize, '&a m p')
+
+	def test_text_whitespace(self):
+		self.assertEqual(tokenize(' some text \n more text'), (TextToken(' some text \n more text'),))
+
+	def test_tag_with_whitespace(self):
+		self.assertEqual(tokenize('< foo >'), (LtToken(), IdToken('foo'), GtToken()))
+		self.assertEqual(tokenize('< f >'), (LtToken(), IdToken('f'), GtToken()))
+		self.assertEqual(tokenize('< / foo >'), (LtToken(), SlashToken(), IdToken('foo'), GtToken()))
+		self.assertEqual(tokenize('< / f >'), (LtToken(), SlashToken(), IdToken('f'), GtToken()))
+		self.assertEqual(tokenize('<  foo / >'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<  f / >'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<foo / >'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<f / >'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<foo/ >'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<f/ >'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('< foo/>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('< f/>'), (LtToken(), IdToken('f'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<\nfoo/>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<\nfoo\n/>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+		self.assertEqual(tokenize('<\nfoo\n/\n>'), (LtToken(), IdToken('foo'), SlashToken(), GtToken()))
+
+	def test_tag_with_newline(self):
+		self.assertEqual(tokenize('<foo>\n</foo>'), (LtToken(), IdToken('foo'), GtToken(), TextToken('\n'), LtToken(), SlashToken(), IdToken('foo'), GtToken()))
