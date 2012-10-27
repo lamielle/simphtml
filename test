@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
-import simphtml
-
-class TestIsValid(unittest.TestCase):
-	def test_empty(self):
-		self.assertTrue(simphtml.isValid(''))
+import simphtml.test
 
 if __name__ == '__main__':
-	unittest.main()
+	suite = unittest.TestLoader().loadTestsFromModule(simphtml.test)
+	unittest.TextTestRunner(verbosity=2).run(suite)

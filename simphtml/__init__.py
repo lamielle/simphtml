@@ -1,1 +1,1 @@
-from parser import isValid
+from parser import isValid, tokenize
