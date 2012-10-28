@@ -1,5 +1,7 @@
 Simple HTML parser:
 
+Usage: ./parse <file>.html
+
 Original problem spec:
 Write a program to take as input a file, and determine whether it is a properly
 formatted subset of html.  Here are the rules for what should be accepted:

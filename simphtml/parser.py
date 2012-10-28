@@ -10,7 +10,8 @@ def isValid(lines):
 
 def parse(lines):
 	"""Parses the given text lines and returns an AST that represents the simple
-HTML document from the text.  Raises a ParseError if parsing fails."""
+HTML document from the text.  Raises a ParseError if parsing fails.  Raises a
+TokenizeError if tokenizing fails."""
 	return SimpHtmlParser().parse(lines)
 
 class ParseError(Exception):
