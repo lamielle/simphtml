@@ -109,3 +109,45 @@ class TestWhiteSpaceTokenStream(TestCase):
 
 	def test_tag_with_newline(self):
 		self.assertEqual(tokenize('<foo>\n</foo>'), (LtToken(), IdToken('foo'), GtToken(), TextToken('\n'), LtToken(), SlashToken(), IdToken('foo'), GtToken()))
+
+class TestErrorPosition(TestCase):
+	def test_degenerate(self):
+		try: tokenize('<-')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 0)
+			self.assertEqual(e.col, 1)
+
+		try: tokenize('<->')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 0)
+			self.assertEqual(e.col, 1)
+
+		try: tokenize('</->')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 0)
+			self.assertEqual(e.col, 2)
+
+		try: tokenize('&foo')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 0)
+			self.assertEqual(e.col, 1)
+
+		try: tokenize('&foo')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 0)
+			self.assertEqual(e.col, 1)
+
+	def test_multiline(self):
+		try: tokenize('&amp\n&f\n&lt')
+		except TokenizeError as e:
+			self.assertEqual(e.line, 1)
+			self.assertEqual(e.col, 1)
+
+class TestTokenPos(TestCase):
+	def test_simple(self):
+		self.assertEqual(tokenize('<')[0].line, 0)
+		self.assertEqual(tokenize('<')[0].col, 0)
+		self.assertEqual(tokenize('<>')[1].line, 0)
+		self.assertEqual(tokenize('<>')[1].col, 1)
+		self.assertEqual(tokenize('<\n>')[1].line, 1)
+		self.assertEqual(tokenize('<\n>')[1].col, 0)

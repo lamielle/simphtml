@@ -1,12 +1,26 @@
 import string
+import os
 from cStringIO import StringIO
+from types import StringType
 
+def tokenize(lines):
+	# If this is actually a string, tack on newlines and build an array.
+	if isinstance(lines, ''.__class__):
+		lines = lines.split(os.linesep)
+		if len(lines) > 0:
+			lastLine = lines[-1]
+			lines = [line + os.linesep for line in lines[:-1]]
+			lines = lines + [lastLine]
+	return TokenStream(lines).tokens()
 
 class Token(object):
 	"""Base class for all token types."""
+	def __init__(self, line = None, col = None):
+		self.line = line
+		self.col = col
+
 	def __eq__(self, other):
-		return (isinstance(other, self.__class__) and
-		        self.__dict__ == other.__dict__)
+		return isinstance(other, self.__class__)
 
 	def __ne__(self, other):
 		return not self.__eq__(other)
@@ -25,8 +39,12 @@ class EscapeAmpToken(Token): pass
 
 class TextToken(Token):
 	"""Token type representing a block of normal text."""
-	def __init__(self, text):
+	def __init__(self, text, line = None, col = None):
+		Token.__init__(self, line, col)
 		self.text = text
+
+	def __eq__(self, other):
+		return Token.__eq__(self,other) and self.text == other.text
 
 	def __str__(self):
 		return '%s(%s)' % (self.__class__.__name__, self.text)
@@ -36,8 +54,12 @@ class TextToken(Token):
 
 class IdToken(Token):
 	"""Token type representing an identifer for a tag."""
-	def __init__(self, id):
+	def __init__(self, id, line = None, col = None):
+		Token.__init__(self, line, col)
 		self.id = id
+
+	def __eq__(self, other):
+		return Token.__eq__(self,other) and self.id == other.id
 
 	def __str__(self):
 		return '%s(%s)' % (self.__class__.__name__, self.id)
@@ -116,15 +138,15 @@ class TokenStream(object):
 			TokenState.AMP_P: self._ampP,
 		}
 
-	def _makeTextToken(self):
+	def _makeTextToken(self, lineNum, charPos):
 		"""Grab the current character buffer and produce a TextToken token."""
-		self._token = TextToken(self._prevChars.getvalue())
+		self._token = TextToken(self._prevChars.getvalue(), lineNum, charPos)
 		self._prevChars.close()
 		self._prevChars = StringIO()
 
-	def _makeIdToken(self):
+	def _makeIdToken(self, lineNum, charPos):
 		"""Grab the current character buffer and produce a IdToken token."""
-		self._token = IdToken(self._prevChars.getvalue())
+		self._token = IdToken(self._prevChars.getvalue(), lineNum, charPos)
 		self._prevChars.close()
 		self._prevChars = StringIO()
 
@@ -148,23 +170,23 @@ class TokenStream(object):
 
 	def _text(self, char, lineNum, charPos, error):
 		if char == '':
-			self._makeTextToken()
+			self._makeTextToken(lineNum, charPos)
 			return TokenState.END
 		elif char == '<':
-			self._makeTextToken()
+			self._makeTextToken(lineNum, charPos)
 			return TokenState.LT
 		elif char == '>':
-			self._makeTextToken()
+			self._makeTextToken(lineNum, charPos)
 			return TokenState.GT
 		elif char == '&':
-			self._makeTextToken()
+			self._makeTextToken(lineNum, charPos)
 			return TokenState.AMP
 		else:
 			self._prevChars.write(char)
 			return TokenState.TEXT
 
 	def _gt(self, char, lineNum, charPos, error):
-		self._token = GtToken()
+		self._token = GtToken(lineNum, charPos)
 		if char == '':
 			return TokenState.END
 		elif char == '<':
@@ -177,7 +199,7 @@ class TokenStream(object):
 			return TokenState.START
 
 	def _lt(self, char, lineNum, charPos, error):
-		self._token = LtToken()
+		self._token = LtToken(lineNum, charPos)
 		if char == '':
 			return TokenState.END
 		elif char == '<':
@@ -199,7 +221,7 @@ class TokenStream(object):
 			return TokenState.START
 
 	def _slash(self, char, lineNum, charPos, error):
-		self._token = SlashToken()
+		self._token = SlashToken(lineNum, charPos)
 		if char == '':
 			return TokenState.END
 		elif char == '>':
@@ -219,24 +241,24 @@ class TokenStream(object):
 			self._prevChars.write(char)
 			return TokenState.ID_NONSTART
 		elif char in string.whitespace:
-			self._makeIdToken()
+			self._makeIdToken(lineNum, charPos)
 			return TokenState.TAG_WHITE
 		else:
-			self._makeIdToken()
+			self._makeIdToken(lineNum, charPos)
 			return TokenState.START
 
 	def _idNonStart(self, char, lineNum, charPos, error):
 		if char == '':
-			self._makeIdToken()
+			self._makeIdToken(lineNum, charPos)
 			return TokenState.END
 		elif char in string.letters or char in string.digits or char == '-':
 			self._prevChars.write(char)
 			return TokenState.ID_NONSTART
 		elif char in string.whitespace:
-			self._makeIdToken()
+			self._makeIdToken(lineNum, charPos)
 			return TokenState.TAG_WHITE
 		else:
-			self._makeIdToken()
+			self._makeIdToken(lineNum, charPos)
 			return TokenState.START
 
 	def _tagWhite(self, char, lineNum, charPos, error):
@@ -283,7 +305,7 @@ class TokenStream(object):
 			return None
 
 	def _ampT(self, char, lineNum, charPos, error):
-		self._token = EscapeLtToken()
+		self._token = EscapeLtToken(lineNum, charPos)
 		if char == '':
 			return TokenState.END
 		else:
@@ -314,7 +336,7 @@ class TokenStream(object):
 			return None
 
 	def _ampP(self, char, lineNum, charPos, error):
-		self._token = EscapeAmpToken()
+		self._token = EscapeAmpToken(lineNum, charPos)
 		if char == '':
 			return TokenState.END
 		else:
@@ -330,6 +352,9 @@ class TokenStream(object):
 	def _nextToken(self):
 		"""Generator method that yields a stream of tokens."""
 		error = TokenizeError()
+		# Predefine these so they are guaranteed to be defined after the loops.
+		lineNum = -1
+		charPos = -1
 		for lineNum, line in enumerate(self._lines):
 			for charPos, char in enumerate(line):
 				self._nextState(char, lineNum, charPos, error)
@@ -346,7 +371,7 @@ class TokenStream(object):
 					self._token = None
 
 		# Flush the last state.
-		self._nextState('', -1, -1, error)
+		self._nextState('', lineNum, charPos, error)
 		if error.isError():
 			raise error
 		elif self._token is not None:

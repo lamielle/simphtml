@@ -3,9 +3,6 @@ from tokens import TokenStream
 def isValid(text):
 	len(tokenize(text.split('\n'))) > 0
 
-def tokenize(lines):
-	return TokenStream(lines).tokens()
-
 # Implements a DFA (state machine) that parses a sequence of lines
 # and produces a token stream.
 #
