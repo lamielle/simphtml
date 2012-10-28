@@ -44,6 +44,8 @@ class TestSingleLine(TestCase):
 		self.assertTrue(isValid('<foo-bar></foo-bar>'))
 
 	def test_unmatched(self):
+		self.assertFalse(isValid('<bar>'))
+		self.assertFalse(isValid('</bar>'))
 		self.assertFalse(isValid('<f></g>'))
 		self.assertFalse(isValid('<f><f><g></f>'))
 		self.assertFalse(isValid('<f><g></f></g>'))

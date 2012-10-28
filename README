@@ -4,6 +4,8 @@ Usage: ./parse <file>.html
 
 Notes:
 -Whitespace in tags is dropped, but whitespace in text is preserved.
+-A trailing Text tag with a single newline will always be present in the result.
+-Line numbers for match errors are not yet printed.
 
 Original problem spec:
 Write a program to take as input a file, and determine whether it is a properly
