@@ -42,5 +42,3 @@ class TestSingleLine(unittest.TestCase):
 		self.assertTrue(simphtml.isValid('<f></f>'))
 		self.assertTrue(simphtml.isValid('<foo></foo>'))
 		self.assertTrue(simphtml.isValid('<foo-bar></foo-bar>'))
-
-
