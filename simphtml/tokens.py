@@ -101,21 +101,21 @@ class TokenizeError(Exception):
 class TokenState(object):
 	"""Pseudo enum class to represent the state diagram for extracting tokens."""
 	_states = (
-	'START',
-	'END',
-	'TEXT',
-	'GT',
-	'LT',
-	'SLASH',
-	'ID_START',
-	'ID_NONSTART',
-	'TAG_WHITE',
-	'AMP',
-	'AMP_L',
-	'AMP_T',
-	'AMP_A',
-	'AMP_M',
-	'AMP_P',
+		'START',
+		'END',
+		'TEXT',
+		'GT',
+		'LT',
+		'SLASH',
+		'ID_START',
+		'ID_NONSTART',
+		'TAG_WHITE',
+		'AMP',
+		'AMP_L',
+		'AMP_T',
+		'AMP_A',
+		'AMP_M',
+		'AMP_P',
 	)
 
 	@classmethod

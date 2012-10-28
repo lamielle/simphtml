@@ -58,7 +58,7 @@ class BaseTag(HtmlElem):
 	def __init__(self, id):
 		self.id = id
 
-	def __repr__(self):
+	def __str__(self):
 		return '%s(%s)' % (self.__class__.__name__, self.id)
 
 	def __repr__(self):
@@ -75,7 +75,7 @@ class Text(HtmlElem):
 	def __init__(self, text):
 		self.text = text
 
-	def __repr__(self):
+	def __str__(self):
 		return '%s(%s)' % (self.__class__.__name__, self.text)
 
 	def __repr__(self):
@@ -93,20 +93,22 @@ The production rules for the syntax are:
 <text>       ::= [TextToken,EscapeLtToken,EscapeAmpToken]+
 <standalone> ::= LtToken IdToken SlashToken GtToken
 <open>       ::= LtToken IdToken GtToken
-<close>      ::= LtToken SlashToken IdToken GtToken
-"""
+<close>      ::= LtToken SlashToken IdToken GtToken"""
 	def __init__(self):
 		self.tokens = None
 
 	def parse(self, lines):
+		"""Parse the given lines of text into a AST that represents the simple HTML
+document in the text.  Raises a ParseError for parsing problems and a
+TokenizeError for tokenization problems."""
 		self.tokens = tokenize(lines, True)
-		return Elems(self.elems())
+		return Elems(self._elems())
 
-	def elems(self):
+	def _elems(self):
 		"""Produces a recursive sequence of elements."""
 		elems = []
 		while True:
-			elem = self.elem()
+			elem = self._elem()
 			if len(elem) > 0:
 				# Merge Text elements
 				if len(elems) > 0 and \
@@ -123,7 +125,7 @@ The production rules for the syntax are:
 				break
 		return tuple(elems)
 
-	def elem(self):
+	def _elem(self):
 		"""Produces one or more elements."""
 		try:
 			token = self.tokens.next()
@@ -131,15 +133,15 @@ The production rules for the syntax are:
 			return []
 
 		if token.isLtToken():
-			return self.lt(token)
+			return self._lt(token)
 		elif token.isTextToken():
-			return self.text(token)
+			return self._text(token)
 		else:
 			raise ParseError('Expected LtToken or TextToken but got %s.' %
 			                 token.name(),
 			                 token.line, token.col)
 
-	def lt(self, ltToken):
+	def _lt(self, ltToken):
 		"""LtToken state handler."""
 		try:
 			token = self.tokens.next()
@@ -148,15 +150,15 @@ The production rules for the syntax are:
 
 		# CloseTag?
 		if token.isSlashToken():
-			return self.closeTag(token)
+			return self._closeTag(token)
 		elif token.isIdToken():
-			return self.id(token)
+			return self._id(token)
 		else:
 			raise ParseError('Expected SlashToken or IdToken after LtToken but got %s.' %
 			                 token.name(),
 			                 token.line, token.col)
 
-	def id(self, idToken):
+	def _id(self, idToken):
 		"""IdToken state handler."""
 		try:
 			token = self.tokens.next()
@@ -164,17 +166,17 @@ The production rules for the syntax are:
 			raise ParseError('Expected token following IdToken but ran out of tokens.', idToken.line, idToken.col)
 
 		if token.isSlashToken():
-			return self.standaloneTag(idToken)
+			return self._standaloneTag(idToken)
 		elif token.isGtToken():
-			return self.openTag(idToken)
+			return self._openTag(idToken)
 		else:
 			raise ParseError('Expected SlashToken or GtToken after IdToken but got %s.' %
 			                 token.name(),
 			                 token.line, token.col)
 
-	def openTag(self, idToken):
+	def _openTag(self, idToken):
 		"""Produces an open tag, nests the following elements, then flattens the ending tag."""
-		elems = self.elems()
+		elems = self._elems()
 		if len(elems) > 1:
 			return [OpenTag(idToken.id), Elems(elems[:-1]), elems[-1]]
 		elif len(elems) == 1:
@@ -182,7 +184,7 @@ The production rules for the syntax are:
 		else:
 			return [OpenTag(idToken.id)]
 
-	def standaloneTag(self, idToken):
+	def _standaloneTag(self, idToken):
 		"""Produces a single StandaloneTag if the next token is a GtToken."""
 		try:
 			gtToken = self.tokens.next()
@@ -196,7 +198,7 @@ The production rules for the syntax are:
 			                 gtToken.name(),
 			                 idToken.line, idToken.co)
 
-	def closeTag(self, slashToken):
+	def _closeTag(self, slashToken):
 		"""Produces a single close tag if the next two tokens are and IdToken and a GtToken."""
 		try:
 			idToken = self.tokens.next()
@@ -211,6 +213,6 @@ The production rules for the syntax are:
 		except StopIteration:
 			raise ParseError('Expected IdToken then GtToken for CloseTag but ran out of tokens.', slashToken.line, slashToken.col)
 
-	def text(self, textToken):
+	def _text(self, textToken):
 		"""Produces a single Text element."""
 		return [Text(textToken.text)]
