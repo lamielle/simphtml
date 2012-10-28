@@ -1,15 +1,25 @@
 from tokens import tokenize, TokenizeError
+from matcher import match, MatchError
+
+def isValid(lines):
+	"""Returns True if the given text lines are properly formatted simple HTML, False otherwise."""
+	try:
+		parse(lines)
+		return True
+	except (MatchError, ParseError, TokenizeError):
+		return False
 
 def parse(lines):
 	"""Parses the given text lines and returns an AST that represents the simple
 HTML document from the text.  Raises a ParseError if parsing fails.  Raises a
 TokenizeError if tokenizing fails."""
-	return SimpHtmlParser().parse(lines)
+	return match(SimpHtmlParser().parse(lines))
 
 class ParseError(Exception):
 	"""Error class for providing line/col where parse errors occur."""
 	def __init__(self, reason, line, col):
 		Exception.__init__(self, reason, line, col)
+		self.reason = reason
 		self.line = line
 		self.col = col
 

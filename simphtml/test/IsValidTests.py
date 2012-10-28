@@ -1,7 +1,7 @@
-import unittest
+from unittest import TestCase
 from simphtml import isValid
 
-class TestSingleLine(unittest.TestCase):
+class TestSingleLine(TestCase):
 	def test_empty(self):
 		self.assertTrue(isValid(''))
 
