@@ -1,13 +1,5 @@
 from tokens import tokenize, TokenizeError
 
-def isValid(lines):
-	"""Returns True if the given text lines are properly formatted simple HTML, False otherwise."""
-	try:
-		parse(lines)
-		return True
-	except (ParseError, TokenizeError):
-		return False
-
 def parse(lines):
 	"""Parses the given text lines and returns an AST that represents the simple
 HTML document from the text.  Raises a ParseError if parsing fails.  Raises a
@@ -33,6 +25,11 @@ class HtmlElem(object):
 	def __repr__(self):
 		return '%s()' % self.__class__.__name__
 
+	def isText(self): return False
+	def isOpenTag(self): return False
+	def isCloseTag(self): return False
+	def isElems(self): return False
+
 class Elems(HtmlElem):
 	"""Ordered sequence of HTML elements."""
 	def __init__(self, elems = None):
@@ -43,6 +40,8 @@ class Elems(HtmlElem):
 
 	def __repr__(self):
 		return '%s(%s)' % (self.__class__.__name__, str(self.elems))
+
+	def isElems(self): return True
 
 class BaseTag(HtmlElem):
 	"""Base class for HTML tag elements."""
@@ -55,8 +54,10 @@ class BaseTag(HtmlElem):
 	def __repr__(self):
 		return "%s('%s')" % (self.__class__.__name__, self.id)
 
-class OpenTag(BaseTag): pass
-class CloseTag(BaseTag): pass
+class OpenTag(BaseTag):
+	def isOpenTag(self): return True
+class CloseTag(BaseTag):
+	def isCloseTag(self): return True
 class StandaloneTag(BaseTag): pass
 
 class Text(HtmlElem):
@@ -69,6 +70,8 @@ class Text(HtmlElem):
 
 	def __repr__(self):
 		return "%s('%s')" % (self.__class__.__name__, self.text)
+
+	def isText(self): return True
 
 class SimpHtmlParser(object):
 	"""Implements a DFA (state machine) that processes a token stream and produces
@@ -97,14 +100,14 @@ The production rules for the syntax are:
 			if len(elem) > 0:
 				# Merge Text elements
 				if len(elems) > 0 and \
-				   isinstance(elems[-1], Text) and \
+				   elems[-1].isText() and \
 				   len(elem) == 1 and \
-				   isinstance(elem[0], Text):
+				   elem[0].isText():
 					elems[-1] = Text(elems[-1].text + elem[0].text)
 				else:
 					elems += elem
 				# Close tag, bump up one level of nesting
-				if isinstance(elem[0], CloseTag):
+				if elem[0].isCloseTag():
 					break
 			else:
 				break
