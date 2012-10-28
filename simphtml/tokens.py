@@ -3,15 +3,16 @@ import os
 from cStringIO import StringIO
 from types import StringType
 
-def tokenize(lines):
-	# If this is actually a string, tack on newlines and build an array.
+def tokenize(lines, generator = False):
+	"""Returns a sequence of simple HTML tokens for the given lines of text.  If generator is True, returns a generator instead of an explicit sequence."""
+	# If lines is actually a string, tack on newlines and build an array.
 	if isinstance(lines, ''.__class__):
 		lines = lines.split(os.linesep)
 		if len(lines) > 0:
 			lastLine = lines[-1]
 			lines = [line + os.linesep for line in lines[:-1]]
 			lines = lines + [lastLine]
-	return TokenStream(lines).tokens()
+	return TokenStream(lines).tokens(generator)
 
 class Token(object):
 	"""Base class for all token types."""
@@ -26,18 +27,35 @@ class Token(object):
 		return not self.__eq__(other)
 
 	def __str__(self):
-		return '%s()' % self.__class__.__name__
+		return repr(self)
 
 	def __repr__(self):
 		return '%s()' % self.__class__.__name__
 
-class LtToken(Token): pass
-class SlashToken(Token): pass
-class GtToken(Token): pass
-class EscapeLtToken(Token): pass
-class EscapeAmpToken(Token): pass
+	def name(self):
+		return self.__class__.__name__
 
-class TextToken(Token):
+	def isTextToken(self): return False
+	def isLtToken(self): return False
+	def isSlashToken(self): return False
+	def isGtToken(self): return False
+	def isIdToken(self): return False
+
+class LtToken(Token):
+	def isLtToken(self): return True
+class SlashToken(Token):
+	def isSlashToken(self): return True
+class GtToken(Token):
+	def isGtToken(self): return True
+
+class BaseTextToken(Token):
+	def isTextToken(self): return True
+class EscapeLtToken(BaseTextToken):
+	text = '<'
+class EscapeAmpToken(BaseTextToken):
+	text = '&'
+
+class TextToken(BaseTextToken):
 	"""Token type representing a block of normal text."""
 	def __init__(self, text, line = None, col = None):
 		Token.__init__(self, line, col)
@@ -67,15 +85,17 @@ class IdToken(Token):
 	def __repr__(self):
 		return "%s('%s')" % (self.__class__.__name__, self.id)
 
+	def isIdToken(self): return True
+
 class TokenizeError(Exception):
-	"""Error class for passing line/col where tokenize errors occur."""
+	"""Error class for providing line/col position where tokenize errors occur."""
 	def __init__(self):
 		Exception.__init__(self)
 		self.line = None
 		self.col = None
 
 	def isError(self):
-		"""Returns true if this instance represents an error, false otherwise."""
+		"""Returns True if this instance represents an error, False otherwise."""
 		return self.line is not None and self.col is not None
 
 class TokenState(object):
@@ -378,6 +398,9 @@ class TokenStream(object):
 			yield self._token
 			self._token = None
 
-	def tokens(self):
+	def tokens(self, generator = False):
 		"""Returns a tuple of tokens for this TokenStream."""
-		return tuple(self)
+		if generator:
+			return (token for token in self)
+		else:
+			return tuple(self)

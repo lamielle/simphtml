@@ -27,5 +27,5 @@ class TestAst(unittest.TestCase):
 		self.assertEqual(parse('<foo-bar></foo-bar>'), Elems((OpenTag('foo-bar'),CloseTag('foo-bar'))))
 
 	def test_nested(self):
-		self.assertEqual(parse('<f>Text</f>'), Elems((OpenTag('f'),Text('Text'),CloseTag('f'))))
-		self.assertEqual(parse('<f> Text </g> Text <h>Text</h></f>'), Elems((OpenTag('f'),Text(' Text '), StandaloneTag('g'), Text(' Text ', Elems((OpenTag('h'), Text('Text'), CloseTag('f')))))))
+		self.assertEqual(parse('<f>Text</f>'), Elems((OpenTag('f'), Elems((Text('Text'),)), CloseTag('f'))))
+		self.assertEqual(parse('<f> Text <g/> Text <h>Text</h></f>'), Elems((OpenTag('f'), Elems((Text(' Text '), StandaloneTag('g'), Text(' Text '), OpenTag('h'), Elems((Text('Text'),)), CloseTag('h'))), CloseTag('f'))))

@@ -1,44 +1,49 @@
 import unittest
-import simphtml
+from simphtml import isValid
 
 class TestSingleLine(unittest.TestCase):
 	def test_empty(self):
-		self.assertTrue(simphtml.isValid(''))
+		self.assertTrue(isValid(''))
 
 	def test_degenerate(self):
-		self.assertFalse(simphtml.isValid('<'))
-		self.assertFalse(simphtml.isValid('<>'))
-		self.assertFalse(simphtml.isValid('>'))
-		self.assertFalse(simphtml.isValid('/>'))
-		self.assertFalse(simphtml.isValid('</>'))
-		self.assertFalse(simphtml.isValid('<-'))
-		self.assertFalse(simphtml.isValid('<->'))
-		self.assertFalse(simphtml.isValid('<-/>'))
-		self.assertFalse(simphtml.isValid('<1/>'))
-		self.assertFalse(simphtml.isValid('<&/>'))
+		self.assertFalse(isValid('<'))
+		self.assertFalse(isValid('<>'))
+		self.assertFalse(isValid('>'))
+		self.assertFalse(isValid('/>'))
+		self.assertFalse(isValid('</>'))
+		self.assertFalse(isValid('<-'))
+		self.assertFalse(isValid('<->'))
+		self.assertFalse(isValid('<-/>'))
+		self.assertFalse(isValid('<1/>'))
+		self.assertFalse(isValid('<&/>'))
 
 	def test_bad_escape(self):
-		self.assertFalse(simphtml.isValid('&foo'))
-		self.assertFalse(simphtml.isValid('&&'))
-		self.assertFalse(simphtml.isValid('&<'))
-		self.assertFalse(simphtml.isValid('&-'))
-		self.assertFalse(simphtml.isValid('&1'))
+		self.assertFalse(isValid('&foo'))
+		self.assertFalse(isValid('&&'))
+		self.assertFalse(isValid('&<'))
+		self.assertFalse(isValid('&-'))
+		self.assertFalse(isValid('&1'))
 
 	def test_text(self):
-		self.assertTrue(simphtml.isValid('f'))
-		self.assertTrue(simphtml.isValid('foo'))
-		self.assertTrue(simphtml.isValid('This is some text'))
-		self.assertTrue(simphtml.isValid('&lt'))
-		self.assertTrue(simphtml.isValid('&amp'))
-		self.assertTrue(simphtml.isValid('before&ampafter'))
+		self.assertTrue(isValid('f'))
+		self.assertTrue(isValid('foo'))
+		self.assertTrue(isValid('This is some text'))
+		self.assertTrue(isValid('&lt'))
+		self.assertTrue(isValid('&amp'))
+		self.assertTrue(isValid('before&ampafter'))
 
 	def test_standalone(self):
-		self.assertTrue(simphtml.isValid('<f/>'))
-		self.assertTrue(simphtml.isValid('<foo/>'))
-		self.assertTrue(simphtml.isValid('<foo-bar/>'))
-		self.assertTrue(simphtml.isValid('<a-/>'))
+		self.assertTrue(isValid('<f/>'))
+		self.assertTrue(isValid('<foo/>'))
+		self.assertTrue(isValid('<foo-bar/>'))
+		self.assertTrue(isValid('<a-/>'))
 
 	def test_matched(self):
-		self.assertTrue(simphtml.isValid('<f></f>'))
-		self.assertTrue(simphtml.isValid('<foo></foo>'))
-		self.assertTrue(simphtml.isValid('<foo-bar></foo-bar>'))
+		self.assertTrue(isValid('<f></f>'))
+		self.assertTrue(isValid('<foo></foo>'))
+		self.assertTrue(isValid('<foo-bar></foo-bar>'))
+
+	def test_unmatched(self):
+		self.assertFalse(isValid('<f></g>'))
+		self.assertFalse(isValid('<f><f><g></f>'))
+		self.assertFalse(isValid('<f><g></f></g>'))
